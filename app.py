@@ -7,6 +7,8 @@ import json
 import webbrowser
 import dateutil.parser
 import babel
+from datetime import datetime
+import os
 from flask import Flask, render_template, request, Response, flash, redirect, url_for,jsonify,abort
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
@@ -25,7 +27,7 @@ app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
 db = SQLAlchemy(app)
-
+app.debug = True
 migrate = Migrate(app, db)
 
 # TODO: connect to a local postgresql database
@@ -39,18 +41,31 @@ class Venue(db.Model):
     __tablename__ = 'venue'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
+    genres= db.Column(db.String(120))
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
+    facebook_link = db.Column(db.String(500))
     image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    website_link = db.Column(db.String(120))
+    website_link = db.Column(db.String(500))
     seeking_talent = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(120))
-
+    seeking_description = db.Column(db.String(500))
+    
+    def __init__(self, name, city, state, address, phone, genres, facebook_link, image_link,website_link, seeking_talent,seeking_description):
+       self.name = name
+       self.city = city
+       self.state = state
+       self.address = address
+       self.phone = phone
+       self.genres =genres
+       self.facebook_link = facebook_link
+       self.image_link = image_link
+       self.website_link = website_link
+       self.seeking_talent = seeking_talent
+       self.seeking_description = seeking_description
 class Artist(db.Model):
     __tablename__ = 'artist'
 
@@ -60,14 +75,27 @@ class Artist(db.Model):
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     genres = db.Column(db.String(120))
+    facebook_link = db.Column(db.String(500))
     image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    website_link = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean,default=False)
-    seeking_description =db.Column(db.String(120))
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
 
+    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+    website_link = db.Column(db.String(500))
+    seeking_venue = db.Column(db.Boolean,default=False)
+    seeking_description =db.Column(db.String(500))
+    
+# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
+    def __init__(self, name, city, state, address, phone, genres, facebook_link, image_link,website_link, seeking_venue,seeking_description):
+       self.name = name
+       self.city = city
+       self.state = state
+       self.address = address
+       self.phone = phone
+       self.genres =genres
+       self.facebook_link = facebook_link
+       self.image_link = image_link
+       self.website_link = website_link
+       self.seeking_venue = seeking_venue
+       self.seeking_description = seeking_description
 class Show(db.Model):
     __tablename__ = 'show'
 
@@ -75,6 +103,12 @@ class Show(db.Model):
     artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
     venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), nullable=False)
     start_time = db.Column(db.DateTime)
+
+    def __init__(self, artist_id, venue_id,start_time):
+       self.artist_id = artist_id
+       self.venue_id = venue_id
+       self.start_time = start_time
+       
 
 
 #----------------------------------------------------------------------------#
@@ -147,37 +181,29 @@ def create_venue_form():
 def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   error =False
-  form = VenueForm()
+  form = VenueForm(request.form)
 
   try:
       name = form.name.data
+      genres= form.genres.data
+      address = form.address.data
       city = form.city.data
       state = form.state.data
-      address = form.address.data
       phone = form.phone.data
-      facebook_link =form.facebook_link.data
-      image_link = form.image_link.data
       website_link = form.website_link.data
+      facebook_link =form.facebook_link.data
       seeking_talent = form.seeking_talent.data
       seeking_description = form.seeking_description.data
+      image_link = form.image_link.data
 
-      venue = Venue(name=name, city=city, state=state, address=address, phone=phone,  facebook_link=facebook_link, image_link=image_link,website_link=website_link, seeking_talent=seeking_talent,seeking_description=seeking_description )
+
+      venue = Venue(name,genres,address,city, state,  phone,  facebook_link, image_link,website_link, seeking_talent,seeking_description )
       db.session.add(venue)
       db.session.commit();
       # flash('Venue ' + form.name.data + ' was successfully listed!')
 
-      # return jsonify({
-      #   'name': venue.name,
-      #   'city': venue.city,
-      #   'state': venue.state,
-      #   'address': venue.address,
-      #   'phone': venue.phone,
-      #   'genres': venue.genres,
-      #   'facebook_link': venue.facebook_link,
-      #   'image_link': venue.image_link,
-      #   'website_link': venue.website_link,
-      #   'seeking_talent': venue.seeking_talent,
-      #   'seeking_description': venue.seeking_description,     })
+      return render_template('pages/home.html')
+
 
  
   except:
@@ -189,17 +215,9 @@ def create_venue_submission():
    if  error == True:
      abort(400)
    else:            
-            return jsonify({
-        'name': venue.name,
-        'city': venue.city,
-        'state': venue.state,
-        'address': venue.address,
-        'phone': venue.phone,
-        'facebook_link': venue.facebook_link,
-        'image_link': venue.image_link,
-        'website_link': venue.website_link,
-        'seeking_talent': venue.seeking_talent,
-        'seeking_description': venue.seeking_description,     })
+        return render_template('pages/home.html')
+    
+        
   
   # TODO: modify data to be the data object returned from db insertion
 
@@ -357,16 +375,15 @@ def create_artist_form():
 def create_artist_submission():
   # called upon submitting the new artist listing form
   # TODO: insert form data as a new Venue record in the db, instead
-  form = ArtistForm()
+  form = ArtistForm(request.form)
 
   try:
-     
+      print(form.city.data)
       name = form.name.data
       city = form.city.data
       state = form.state.data
-      address = form.state.data
       phone = form.phone.data
-      genres = form.genres.data
+      genres =  "".join(str(e) for e in form.genres.data)
       facebook_link =form.facebook_link.data
       image_link = form.image_link.data
       website_link = form.website_link.data
@@ -374,23 +391,12 @@ def create_artist_submission():
       seeking_description = form.seeking_description.data
      
 
-      artist = Artist( name, city, state, address, phone, genres, facebook_link, image_link,website_link, seeking_venue,seeking_description )
+      artist = Artist( name,genres, city, state,  phone,  facebook_link, image_link,website_link, seeking_venue,seeking_description )
       db.session.add(artist)
       db.session.commit();
-      flash('Artist ' + name + ' was successfully listed!')
+      flash('Artist ' + form.name.data + ' was successfully listed!')
 
-      return jsonify({
-        'name': artist.name,
-        'city': artist.city,
-        'state': artist.state,
-        'address': artist.state,
-        'phone': artist.phone,
-        'genres': artist.genres,
-        'facebook_link': artist.facebook_link,
-        'image_link': artist.image_link,
-        'website_link': artist.website_link,
-         'seeking_venue': artist.seeking_venue,
-         'seeking_description': artist.seeking_description,     })
+      render_template('pages/home.html')
 
   except:
    db.session.rollback()
@@ -427,26 +433,22 @@ def create_shows():
 def create_show_submission():
   # called to create new shows in the db, upon submitting new show listing form
   # TODO: insert form data as a new Show record in the db, instead
- form = ShowForm()
+ form = ShowForm(request.form)
 
  try:
-      artist_id = form.artist_id
+      artist_id = form.artist_id.data
 
       venue_id = form.venue_id.data
-      start_time = form.start_time.data      
+      start_time =form.start_time.data 
       
 
       show = Show(artist_id = artist_id,venue_id = venue_id,start_time = start_time)
       db.session.add(show)
       db.session.commit();
       flash('Show was successfully listed!')
+      return render_template('pages/home.html')
 
-      return jsonify({
-       
-        'artist_id': artist_id,
-        'venue_id': venue_id,
-        'start_time': start_time,
-             })
+      
  except:
    db.session.rollback()
    error=True
@@ -483,12 +485,12 @@ if not app.debug:
 #----------------------------------------------------------------------------#
 
 # Default port:
-if __name__ == '__main__':
-    app.run()
+# if __name__ == '__main__':
+#     app.run()
 
 # Or specify port manually:
-'''
+# '''
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
-'''
+# '''
